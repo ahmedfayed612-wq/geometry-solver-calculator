@@ -5,11 +5,12 @@ import { solveRectangle } from './geometry-engine/solvers/rectangleSolver'
 import type { TriangleInput, SquareInput, RectangleInput } from './geometry-engine/core/types'
 
 type ShapeType = 'triangle' | 'square' | 'rectangle' | null
+type TabType = 'solver' | 'ai-scanner' | 'graph' | 'guide'
 
 function App() {
   const [selectedShape, setSelectedShape] = useState<ShapeType>(null)
   const [unit, setUnit] = useState<'mm' | 'cm' | 'm' | 'km'>('cm')
-  const [activeTab, setActiveTab] = useState<'solver' | 'draw'>('solver')
+  const [activeTab, setActiveTab] = useState<TabType>('solver')
   
   // Triangle inputs
   const [triangleInputs, setTriangleInputs] = useState<TriangleInput>({
@@ -81,7 +82,6 @@ function App() {
       const { a, b, c } = result.sides
       if (!a || !b || !c) return null
 
-      // Calculate triangle coordinates using side lengths
       const scale = (size - padding * 2) / Math.max(a, b, c)
       const A = { x: size / 2, y: padding }
       const B = { x: padding, y: size - padding }
@@ -165,35 +165,69 @@ function App() {
     return null
   }
 
+  // Grid rendering for draw panel
+  const renderGrid = () => {
+    const gridSize = 400
+    const cellSize = 20
+    const lines = []
+
+    // Vertical lines
+    for (let x = 0; x <= gridSize; x += cellSize) {
+      lines.push(
+        <line
+          key={`v-${x}`}
+          x1={x}
+          y1={0}
+          x2={x}
+          y2={gridSize}
+          stroke="#e2e8f0"
+          strokeWidth="1"
+        />
+      )
+    }
+
+    // Horizontal lines
+    for (let y = 0; y <= gridSize; y += cellSize) {
+      lines.push(
+        <line
+          key={`h-${y}`}
+          x1={0}
+          y1={y}
+          x2={gridSize}
+          y2={y}
+          stroke="#e2e8f0"
+          strokeWidth="1"
+        />
+      )
+    }
+
+    return (
+      <svg width={gridSize} height={gridSize} className="border border-slate-200">
+        {lines}
+        {renderPolygon()}
+      </svg>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-slate-800">GeoSolve</h1>
-            <div className="flex gap-2">
+    <div className="min-h-screen bg-slate-100">
+      {/* Header with tabs */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex gap-1">
+            {(['solver', 'ai-scanner', 'graph', 'guide'] as TabType[]).map((tab) => (
               <button
-                onClick={() => setActiveTab('solver')}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  activeTab === 'solver' 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-6 py-3 font-medium text-sm transition ${
+                  activeTab === tab
+                    ? 'bg-blue-500 text-white'
+                    : 'text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                Solver
+                {tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ')}
               </button>
-              <button
-                onClick={() => setActiveTab('draw')}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  activeTab === 'draw' 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                Draw
-              </button>
-            </div>
+            ))}
           </div>
         </div>
       </div>
@@ -203,11 +237,28 @@ function App() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Left Panel - Variables */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-            <h2 className="text-lg font-semibold text-slate-700 mb-4">Variables</h2>
-            <div className="space-y-2">
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+            <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+              <h2 className="text-sm font-semibold text-slate-700">Variable</h2>
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {['a', 'b', 'c', 'd', 'z', 'f', 'x', 'y', 'm', 't', 'Ans', 'PreAns'].map((variable) => (
+                  <div key={variable} className="text-center">
+                    <div className="text-xs text-slate-500 mb-1">{variable}</div>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500"
+                      placeholder="0"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Shape-specific inputs */}
               {selectedShape === 'triangle' && (
-                <>
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-slate-600 mb-2">Triangle Inputs</div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="text-xs text-slate-500">Side a</label>
@@ -218,7 +269,7 @@ function App() {
                           ...triangleInputs,
                           sides: { ...triangleInputs.sides, a: e.target.value ? parseFloat(e.target.value) : undefined }
                         })}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
                         placeholder="a"
                       />
                     </div>
@@ -231,7 +282,7 @@ function App() {
                           ...triangleInputs,
                           sides: { ...triangleInputs.sides, b: e.target.value ? parseFloat(e.target.value) : undefined }
                         })}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
                         placeholder="b"
                       />
                     </div>
@@ -244,7 +295,7 @@ function App() {
                           ...triangleInputs,
                           sides: { ...triangleInputs.sides, c: e.target.value ? parseFloat(e.target.value) : undefined }
                         })}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
                         placeholder="c"
                       />
                     </div>
@@ -257,7 +308,7 @@ function App() {
                           ...triangleInputs,
                           angles: { ...triangleInputs.angles, A: e.target.value ? parseFloat(e.target.value) : undefined }
                         })}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
                         placeholder="A"
                       />
                     </div>
@@ -270,7 +321,7 @@ function App() {
                           ...triangleInputs,
                           angles: { ...triangleInputs.angles, B: e.target.value ? parseFloat(e.target.value) : undefined }
                         })}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
                         placeholder="B"
                       />
                     </div>
@@ -283,7 +334,7 @@ function App() {
                           ...triangleInputs,
                           angles: { ...triangleInputs.angles, C: e.target.value ? parseFloat(e.target.value) : undefined }
                         })}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
                         placeholder="C"
                       />
                     </div>
@@ -293,386 +344,399 @@ function App() {
                       ...triangleInputs,
                       isRightTriangle: !triangleInputs.isRightTriangle
                     })}
-                    className={`w-full py-2 rounded-lg text-sm font-medium ${
+                    className={`w-full py-1 rounded text-xs font-medium ${
                       triangleInputs.isRightTriangle ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-700'
                     }`}
                   >
                     Right Triangle: {triangleInputs.isRightTriangle ? 'ON' : 'OFF'}
                   </button>
-                </>
+                </div>
               )}
 
               {selectedShape === 'square' && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs text-slate-500">Side</label>
-                    <input
-                      type="number"
-                      value={squareInputs.side || ''}
-                      onChange={(e) => setSquareInputs({
-                        ...squareInputs,
-                        side: e.target.value ? parseFloat(e.target.value) : undefined
-                      })}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="side"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-500">Perimeter</label>
-                    <input
-                      type="number"
-                      value={squareInputs.perimeter || ''}
-                      onChange={(e) => setSquareInputs({
-                        ...squareInputs,
-                        perimeter: e.target.value ? parseFloat(e.target.value) : undefined
-                      })}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="perimeter"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-500">Area</label>
-                    <input
-                      type="number"
-                      value={squareInputs.area || ''}
-                      onChange={(e) => setSquareInputs({
-                        ...squareInputs,
-                        area: e.target.value ? parseFloat(e.target.value) : undefined
-                      })}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="area"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-500">Diagonal</label>
-                    <input
-                      type="number"
-                      value={squareInputs.diagonal || ''}
-                      onChange={(e) => setSquareInputs({
-                        ...squareInputs,
-                        diagonal: e.target.value ? parseFloat(e.target.value) : undefined
-                      })}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="diagonal"
-                    />
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-slate-600 mb-2">Square Inputs</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-slate-500">Side</label>
+                      <input
+                        type="number"
+                        value={squareInputs.side || ''}
+                        onChange={(e) => setSquareInputs({
+                          ...squareInputs,
+                          side: e.target.value ? parseFloat(e.target.value) : undefined
+                        })}
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
+                        placeholder="side"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-500">Perimeter</label>
+                      <input
+                        type="number"
+                        value={squareInputs.perimeter || ''}
+                        onChange={(e) => setSquareInputs({
+                          ...squareInputs,
+                          perimeter: e.target.value ? parseFloat(e.target.value) : undefined
+                        })}
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
+                        placeholder="perimeter"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-500">Area</label>
+                      <input
+                        type="number"
+                        value={squareInputs.area || ''}
+                        onChange={(e) => setSquareInputs({
+                          ...squareInputs,
+                          area: e.target.value ? parseFloat(e.target.value) : undefined
+                        })}
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
+                        placeholder="area"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-500">Diagonal</label>
+                      <input
+                        type="number"
+                        value={squareInputs.diagonal || ''}
+                        onChange={(e) => setSquareInputs({
+                          ...squareInputs,
+                          diagonal: e.target.value ? parseFloat(e.target.value) : undefined
+                        })}
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
+                        placeholder="diagonal"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
 
               {selectedShape === 'rectangle' && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs text-slate-500">Length</label>
-                    <input
-                      type="number"
-                      value={rectangleInputs.length || ''}
-                      onChange={(e) => setRectangleInputs({
-                        ...rectangleInputs,
-                        length: e.target.value ? parseFloat(e.target.value) : undefined
-                      })}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="length"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-500">Width</label>
-                    <input
-                      type="number"
-                      value={rectangleInputs.width || ''}
-                      onChange={(e) => setRectangleInputs({
-                        ...rectangleInputs,
-                        width: e.target.value ? parseFloat(e.target.value) : undefined
-                      })}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="width"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-500">Area</label>
-                    <input
-                      type="number"
-                      value={rectangleInputs.area || ''}
-                      onChange={(e) => setRectangleInputs({
-                        ...rectangleInputs,
-                        area: e.target.value ? parseFloat(e.target.value) : undefined
-                      })}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="area"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-500">Perimeter</label>
-                    <input
-                      type="number"
-                      value={rectangleInputs.perimeter || ''}
-                      onChange={(e) => setRectangleInputs({
-                        ...rectangleInputs,
-                        perimeter: e.target.value ? parseFloat(e.target.value) : undefined
-                      })}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="perimeter"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-xs text-slate-500">Diagonal</label>
-                    <input
-                      type="number"
-                      value={rectangleInputs.diagonal || ''}
-                      onChange={(e) => setRectangleInputs({
-                        ...rectangleInputs,
-                        diagonal: e.target.value ? parseFloat(e.target.value) : undefined
-                      })}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="diagonal"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {!selectedShape && (
-                <div className="text-center text-slate-400 py-8">
-                  Select a shape to input variables
-                </div>
-              )}
-            </div>
-
-            {/* Unit Selector */}
-            <div className="mt-4 pt-4 border-t border-slate-200">
-              <label className="text-xs text-slate-500">Unit</label>
-              <div className="flex gap-2 mt-2">
-                {(['mm', 'cm', 'm', 'km'] as const).map((u) => (
-                  <button
-                    key={u}
-                    onClick={() => setUnit(u)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium ${
-                      unit === u ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {u}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Center Panel - Calculator */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-            <h2 className="text-lg font-semibold text-slate-700 mb-4">Calculator</h2>
-            
-            {/* Shape Selector */}
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              <button
-                onClick={() => setSelectedShape('triangle')}
-                className={`py-3 rounded-lg font-medium transition ${
-                  selectedShape === 'triangle' 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                △ Triangle
-              </button>
-              <button
-                onClick={() => setSelectedShape('square')}
-                className={`py-3 rounded-lg font-medium transition ${
-                  selectedShape === 'square' 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                □ Square
-              </button>
-              <button
-                onClick={() => setSelectedShape('rectangle')}
-                className={`py-3 rounded-lg font-medium transition ${
-                  selectedShape === 'rectangle' 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                ▢ Rectangle
-              </button>
-            </div>
-
-            {/* Display */}
-            <div className="bg-slate-900 rounded-lg p-4 mb-4">
-              <div className="text-slate-400 text-sm mb-1">
-                {selectedShape ? selectedShape.toUpperCase() : 'SELECT SHAPE'}
-              </div>
-              {result && (
-                <div className="text-green-400 text-xl font-mono">
-                  {result.status === 'SOLVED' ? '✓ SOLVED' : result.status}
-                </div>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={handleClear}
-                className="py-3 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition"
-              >
-                Clear
-              </button>
-              <button
-                onClick={() => setShowSteps(!showSteps)}
-                className="py-3 bg-slate-500 text-white rounded-lg font-medium hover:bg-slate-600 transition"
-              >
-                Steps
-              </button>
-              <button
-                onClick={handleSolve}
-                className="col-span-2 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition"
-              >
-                Solve
-              </button>
-            </div>
-
-            {/* Results */}
-            {result && result.status === 'SOLVED' && (
-              <div className="mt-4 bg-green-50 rounded-lg p-4 border border-green-200">
-                <h3 className="text-sm font-semibold text-green-700 mb-3">Results</h3>
-                
-                {selectedShape === 'triangle' && result.sides && result.angles && (
-                  <div className="space-y-2 text-sm">
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">Side a</div>
-                        <div className="font-mono">{result.sides.a?.toFixed(3)} {unit}</div>
-                      </div>
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">Side b</div>
-                        <div className="font-mono">{result.sides.b?.toFixed(3)} {unit}</div>
-                      </div>
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">Side c</div>
-                        <div className="font-mono">{result.sides.c?.toFixed(3)} {unit}</div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">∠A</div>
-                        <div className="font-mono">{result.angles.A?.toFixed(1)}°</div>
-                      </div>
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">∠B</div>
-                        <div className="font-mono">{result.angles.B?.toFixed(1)}°</div>
-                      </div>
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">∠C</div>
-                        <div className="font-mono">{result.angles.C?.toFixed(1)}°</div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">Area</div>
-                        <div className="font-mono">{result.area?.toFixed(3)} {unit}²</div>
-                      </div>
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">Perimeter</div>
-                        <div className="font-mono">{result.perimeter?.toFixed(3)} {unit}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedShape === 'square' && (
-                  <div className="space-y-2 text-sm">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">Side</div>
-                        <div className="font-mono">{result.side?.toFixed(3)} {unit}</div>
-                      </div>
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">Perimeter</div>
-                        <div className="font-mono">{result.perimeter?.toFixed(3)} {unit}</div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">Area</div>
-                        <div className="font-mono">{result.area?.toFixed(3)} {unit}²</div>
-                      </div>
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">Diagonal</div>
-                        <div className="font-mono">{result.diagonal?.toFixed(3)} {unit}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedShape === 'rectangle' && (
-                  <div className="space-y-2 text-sm">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">Length</div>
-                        <div className="font-mono">{result.length?.toFixed(3)} {unit}</div>
-                      </div>
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">Width</div>
-                        <div className="font-mono">{result.width?.toFixed(3)} {unit}</div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">Area</div>
-                        <div className="font-mono">{result.area?.toFixed(3)} {unit}²</div>
-                      </div>
-                      <div className="bg-white rounded p-2 text-center">
-                        <div className="text-slate-500 text-xs">Perimeter</div>
-                        <div className="font-mono">{result.perimeter?.toFixed(3)} {unit}</div>
-                      </div>
-                    </div>
-                    <div className="bg-white rounded p-2 text-center">
-                      <div className="text-slate-500 text-xs">Diagonal</div>
-                      <div className="font-mono">{result.diagonal?.toFixed(3)} {unit}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Error Display */}
-            {result && result.status !== 'SOLVED' && (
-              <div className="mt-4 bg-red-50 rounded-lg p-4 border border-red-200">
-                <div className="text-sm font-semibold text-red-700">{result.status}</div>
-                {result.errors && result.errors.length > 0 && (
-                  <div className="text-red-600 text-xs mt-2">
-                    {result.errors.map((error: string, index: number) => (
-                      <div key={index}>• {error}</div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Calculation Steps */}
-            {showSteps && result && result.steps && result.steps.length > 0 && (
-              <div className="mt-4 bg-blue-50 rounded-lg p-4 border border-blue-200 max-h-60 overflow-y-auto">
-                <h3 className="text-sm font-semibold text-blue-700 mb-3">Calculation Steps</h3>
                 <div className="space-y-2">
-                  {result.steps.map((step: any, index: number) => (
-                    <div key={index} className="bg-white rounded p-2 text-xs">
-                      <div className="text-slate-600">{step.formula}</div>
-                      <div className="font-mono text-slate-800">{step.substitutedFormula}</div>
-                      <div className="text-green-600 font-mono">{step.result?.toFixed(6)}</div>
-                      <div className="text-slate-500 mt-1">{step.explanation}</div>
+                  <div className="text-xs font-semibold text-slate-600 mb-2">Rectangle Inputs</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-slate-500">Length</label>
+                      <input
+                        type="number"
+                        value={rectangleInputs.length || ''}
+                        onChange={(e) => setRectangleInputs({
+                          ...rectangleInputs,
+                          length: e.target.value ? parseFloat(e.target.value) : undefined
+                        })}
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
+                        placeholder="length"
+                      />
                     </div>
+                    <div>
+                      <label className="text-xs text-slate-500">Width</label>
+                      <input
+                        type="number"
+                        value={rectangleInputs.width || ''}
+                        onChange={(e) => setRectangleInputs({
+                          ...rectangleInputs,
+                          width: e.target.value ? parseFloat(e.target.value) : undefined
+                        })}
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
+                        placeholder="width"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-500">Area</label>
+                      <input
+                        type="number"
+                        value={rectangleInputs.area || ''}
+                        onChange={(e) => setRectangleInputs({
+                          ...rectangleInputs,
+                          area: e.target.value ? parseFloat(e.target.value) : undefined
+                        })}
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
+                        placeholder="area"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-500">Perimeter</label>
+                      <input
+                        type="number"
+                        value={rectangleInputs.perimeter || ''}
+                        onChange={(e) => setRectangleInputs({
+                          ...rectangleInputs,
+                          perimeter: e.target.value ? parseFloat(e.target.value) : undefined
+                        })}
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
+                        placeholder="perimeter"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-xs text-slate-500">Diagonal</label>
+                      <input
+                        type="number"
+                        value={rectangleInputs.diagonal || ''}
+                        onChange={(e) => setRectangleInputs({
+                          ...rectangleInputs,
+                          diagonal: e.target.value ? parseFloat(e.target.value) : undefined
+                        })}
+                        className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
+                        placeholder="diagonal"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Unit selector */}
+              <div className="mt-4 pt-4 border-t border-slate-200">
+                <div className="text-xs text-slate-500 mb-2">Unit</div>
+                <div className="flex gap-1">
+                  {(['mm', 'cm', 'm', 'km'] as const).map((u) => (
+                    <button
+                      key={u}
+                      onClick={() => setUnit(u)}
+                      className={`flex-1 py-1 rounded text-xs font-medium ${
+                        unit === u ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {u}
+                    </button>
                   ))}
                 </div>
               </div>
-            )}
+            </div>
+          </div>
+
+          {/* Center Panel - Scientific Calculator */}
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+            <div className="bg-slate-800 px-4 py-2 border-b border-slate-700">
+              <h2 className="text-sm font-semibold text-white">Scientific Calculator</h2>
+            </div>
+            <div className="p-4">
+              {/* Calculator display */}
+              <div className="bg-slate-900 rounded-lg p-4 mb-4 border-4 border-slate-700">
+                <div className="text-slate-400 text-xs mb-1">
+                  {selectedShape ? selectedShape.toUpperCase() : 'SELECT SHAPE'}
+                </div>
+                <div className="text-green-400 text-lg font-mono h-8">
+                  {result && result.status === 'SOLVED' ? '✓ SOLVED' : result?.status || ''}
+                </div>
+              </div>
+
+              {/* Shape selector */}
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <button
+                  onClick={() => setSelectedShape('triangle')}
+                  className={`py-2 rounded text-xs font-medium ${
+                    selectedShape === 'triangle' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  △ Triangle
+                </button>
+                <button
+                  onClick={() => setSelectedShape('square')}
+                  className={`py-2 rounded text-xs font-medium ${
+                    selectedShape === 'square' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  □ Square
+                </button>
+                <button
+                  onClick={() => setSelectedShape('rectangle')}
+                  className={`py-2 rounded text-xs font-medium ${
+                    selectedShape === 'rectangle' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  ▢ Rectangle
+                </button>
+              </div>
+
+              {/* Calculator buttons */}
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                {['7', '8', '9', '÷', '4', '5', '6', '×', '1', '2', '3', '-', '0', '.', '=', '+'].map((btn) => (
+                  <button
+                    key={btn}
+                    className={`py-3 rounded text-sm font-medium ${
+                      ['÷', '×', '-', '+', '='].includes(btn)
+                        ? 'bg-orange-500 text-white hover:bg-orange-600'
+                        : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                    }`}
+                  >
+                    {btn}
+                  </button>
+                ))}
+              </div>
+
+              {/* Action buttons */}
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={handleClear}
+                  className="py-2 bg-red-500 text-white rounded text-xs font-medium hover:bg-red-600"
+                >
+                  AC
+                </button>
+                <button
+                  onClick={() => setShowSteps(!showSteps)}
+                  className="py-2 bg-slate-500 text-white rounded text-xs font-medium hover:bg-slate-600"
+                >
+                  Steps
+                </button>
+                <button
+                  onClick={handleSolve}
+                  className="py-2 bg-green-500 text-white rounded text-xs font-medium hover:bg-green-600"
+                >
+                  Solve
+                </button>
+              </div>
+
+              {/* Results */}
+              {result && result.status === 'SOLVED' && (
+                <div className="mt-4 bg-green-50 rounded p-3 border border-green-200">
+                  <div className="text-xs font-semibold text-green-700 mb-2">Results</div>
+                  
+                  {selectedShape === 'triangle' && result.sides && result.angles && (
+                    <div className="space-y-1 text-xs">
+                      <div className="grid grid-cols-3 gap-1">
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">a</div>
+                          <div className="font-mono">{result.sides.a?.toFixed(2)} {unit}</div>
+                        </div>
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">b</div>
+                          <div className="font-mono">{result.sides.b?.toFixed(2)} {unit}</div>
+                        </div>
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">c</div>
+                          <div className="font-mono">{result.sides.c?.toFixed(2)} {unit}</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1">
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">∠A</div>
+                          <div className="font-mono">{result.angles.A?.toFixed(1)}°</div>
+                        </div>
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">∠B</div>
+                          <div className="font-mono">{result.angles.B?.toFixed(1)}°</div>
+                        </div>
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">∠C</div>
+                          <div className="font-mono">{result.angles.C?.toFixed(1)}°</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">Area</div>
+                          <div className="font-mono">{result.area?.toFixed(2)} {unit}²</div>
+                        </div>
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">Perimeter</div>
+                          <div className="font-mono">{result.perimeter?.toFixed(2)} {unit}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedShape === 'square' && (
+                    <div className="space-y-1 text-xs">
+                      <div className="grid grid-cols-2 gap-1">
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">Side</div>
+                          <div className="font-mono">{result.side?.toFixed(2)} {unit}</div>
+                        </div>
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">Perimeter</div>
+                          <div className="font-mono">{result.perimeter?.toFixed(2)} {unit}</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">Area</div>
+                          <div className="font-mono">{result.area?.toFixed(2)} {unit}²</div>
+                        </div>
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">Diagonal</div>
+                          <div className="font-mono">{result.diagonal?.toFixed(2)} {unit}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedShape === 'rectangle' && (
+                    <div className="space-y-1 text-xs">
+                      <div className="grid grid-cols-2 gap-1">
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">Length</div>
+                          <div className="font-mono">{result.length?.toFixed(2)} {unit}</div>
+                        </div>
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">Width</div>
+                          <div className="font-mono">{result.width?.toFixed(2)} {unit}</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">Area</div>
+                          <div className="font-mono">{result.area?.toFixed(2)} {unit}²</div>
+                        </div>
+                        <div className="bg-white rounded p-1 text-center">
+                          <div className="text-slate-500">Perimeter</div>
+                          <div className="font-mono">{result.perimeter?.toFixed(2)} {unit}</div>
+                        </div>
+                      </div>
+                      <div className="bg-white rounded p-1 text-center">
+                        <div className="text-slate-500">Diagonal</div>
+                        <div className="font-mono">{result.diagonal?.toFixed(2)} {unit}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Error Display */}
+              {result && result.status !== 'SOLVED' && (
+                <div className="mt-4 bg-red-50 rounded p-3 border border-red-200">
+                  <div className="text-xs font-semibold text-red-700">{result.status}</div>
+                  {result.errors && result.errors.length > 0 && (
+                    <div className="text-red-600 text-xs mt-1">
+                      {result.errors.map((error: string, index: number) => (
+                        <div key={index}>• {error}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Calculation Steps */}
+              {showSteps && result && result.steps && result.steps.length > 0 && (
+                <div className="mt-4 bg-blue-50 rounded p-3 border border-blue-200 max-h-40 overflow-y-auto">
+                  <div className="text-xs font-semibold text-blue-700 mb-2">Calculation Steps</div>
+                  <div className="space-y-1">
+                    {result.steps.map((step: any, index: number) => (
+                      <div key={index} className="bg-white rounded p-1 text-xs">
+                        <div className="text-slate-600">{step.formula}</div>
+                        <div className="font-mono text-slate-800">{step.substitutedFormula}</div>
+                        <div className="text-green-600 font-mono">{step.result?.toFixed(4)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Right Panel - Draw */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-            <h2 className="text-lg font-semibold text-slate-700 mb-4">Draw</h2>
-            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 flex items-center justify-center min-h-[400px]">
-              {renderPolygon() || (
-                <div className="text-center text-slate-400">
-                  <div className="text-4xl mb-2">📐</div>
-                  <div className="text-sm">Solve a shape to see it here</div>
-                </div>
-              )}
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+            <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+              <h2 className="text-sm font-semibold text-slate-700">Draw</h2>
+            </div>
+            <div className="p-4 flex items-center justify-center">
+              {renderGrid()}
             </div>
           </div>
         </div>
